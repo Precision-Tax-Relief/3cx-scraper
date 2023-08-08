@@ -1,3 +1,4 @@
+#!/bin/bash
 container=$(docker run -p 9000:8080 --detach booker-scraper:latest)
 docker exec -it "$container" bash
 
