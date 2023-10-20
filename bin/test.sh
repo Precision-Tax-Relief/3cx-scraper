@@ -1,13 +1,20 @@
 #!/bin/bash
-container=$(docker run -p 9000:8080 --detach --cpus=1 --memory=2048m booker-scraper:latest)
+rm -rf segment
+cp -r /Users/logan/rufsoft/analytics-python/segment segment
+
+docker-compose down
+docker-compose build
+docker-compose up -d
+
+sleep 1
 
 # Invoke the function
 curl "http://localhost:9000/2015-03-31/functions/function/invocations" \
-      -d '{}'
+      -d '{"task": "daily"}'
 echo ""
 
-docker logs "$container"
-docker stop "$container" > /dev/null 2>&1
-docker rm "$container" > /dev/null 2>&1
+docker-compose logs -f
+
+docker-compose down
 
 docker ps -a

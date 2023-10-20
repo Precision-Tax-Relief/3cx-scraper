@@ -1,1 +1,5 @@
 /response.json
+/downloads/
+/submodules
+.env
+venv

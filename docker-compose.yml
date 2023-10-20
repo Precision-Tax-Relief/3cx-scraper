@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  booker-scraper:
+    build: .
+    image: booker-scraper:latest
+    ports:
+      - "9000:8080"
+    env_file:
+      - .env
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 4096m

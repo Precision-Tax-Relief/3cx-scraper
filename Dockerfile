@@ -32,8 +32,21 @@ COPY requirements.txt ${LAMBDA_TASK_ROOT}
 # Install the specified packages
 RUN pip install -r requirements.txt
 
+# TEMPORARY: Copy segment library fork
+ RUN wget https://github.com/Logan-Ruf/analytics-python/archive/refs/heads/master.zip
+ Unzip in temp directory
+ RUN unzip master.zip -d /tmp
+ Copy segment subdirectory to project
+ RUN cp -r /tmp/analytics-python-master/segment ${LAMBDA_TASK_ROOT}
+
 # Copy function code
 COPY lambda_function.py ${LAMBDA_TASK_ROOT}
+COPY webdriver_client.py ${LAMBDA_TASK_ROOT}
+COPY scrapers.py ${LAMBDA_TASK_ROOT}
+COPY parser.py ${LAMBDA_TASK_ROOT}
+COPY tasks.py ${LAMBDA_TASK_ROOT}
+
+COPY downloads /downloads
 
 # Set the CMD to your handler (could also be done as a parameter override outside of the Dockerfile)
 CMD [ "lambda_function.handler" ]
