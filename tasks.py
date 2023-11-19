@@ -27,14 +27,14 @@ def send_appointments(appointment_dataframe, treatment_dataframe, analytics):
     for row in treatment_dataframe.iterrows():
         data = dict(row[1])
         analytics.object(object_id=string_to_uuid(f'{data["appointment"]}{data["appointment_on"]}'),
-                         collection='appointments',
+                         collection='treatments',
                          properties=data)
 
 
 def send_orders(dataframe, analytics):
     for row in dataframe.iterrows():
         data = dict(row[1])
-        analytics.object(object_id=data['order_number'], collection='orders', properties=data)
+        analytics.object(object_id=str(data['order_number']), collection='orders', properties=data)
 
 
 def customers_today(driver, download_dir, analytics):
@@ -143,6 +143,64 @@ def weekly_scrape(driver, download_dir, analytics):
         send_orders(df, analytics)
 
 
+def year_orders(driver, download_dir, analytics):
+    with TemporaryDirectory() as dest_dir:
+        try:
+            scraper = BookerScraper(
+                driver=driver,
+                start_date=datetime.date.today() - datetime.timedelta(days=35),
+                end_date=datetime.date.today() + datetime.timedelta(days=32),
+                download_dir=download_dir,
+                destination_dir=dest_dir,
+                export_period=10
+            )
+            scraper.login(
+                os.environ.get('BOOKER_ACCOUNT'),
+                os.environ.get('BOOKER_USERNAME'),
+                os.environ.get('BOOKER_PASSWORD')
+            )
+        except Exception as e:
+            driver.quit()
+            raise (e)
+
+    for location in scraper.locations.values():
+        with TemporaryDirectory() as dest_dir:
+            scraper.destination_dir = dest_dir
+            scraper.orders_flow(location)
+            parser = BookerParser(dest_dir)
+            df = parser.import_orders()
+        send_orders(df, analytics)
+
+
+def year_appointments(driver, download_dir, analytics):
+    with TemporaryDirectory() as dest_dir:
+        try:
+            scraper = BookerScraper(
+                driver=driver,
+                start_date=datetime.date.today() - datetime.timedelta(days=35),
+                end_date=datetime.date.today() + datetime.timedelta(days=32),
+                download_dir=download_dir,
+                destination_dir=dest_dir,
+                export_period=10
+            )
+            scraper.login(
+                os.environ.get('BOOKER_ACCOUNT'),
+                os.environ.get('BOOKER_USERNAME'),
+                os.environ.get('BOOKER_PASSWORD')
+            )
+        except Exception as e:
+            driver.quit()
+            raise (e)
+
+    for location in scraper.locations.values():
+        with TemporaryDirectory() as dest_dir:
+            scraper.destination_dir = dest_dir
+            scraper.appointments_flow(location)
+            parser = BookerParser(dest_dir)
+            a_df, t_df = parser.import_appointments()
+        send_appointments(a_df, t_df, analytics)
+
+
 def monthly_scrape(driver, download_dir, analytics):
     with TemporaryDirectory() as dest_dir:
         try:
@@ -159,13 +217,13 @@ def monthly_scrape(driver, download_dir, analytics):
                 os.environ.get('BOOKER_USERNAME'),
                 os.environ.get('BOOKER_PASSWORD')
             )
-            scraper.customer_flow()
-            parser = BookerParser(dest_dir)
-            df = parser.parse_customers()
+            # scraper.customer_flow()
+            # parser = BookerParser(dest_dir)
+            # df = parser.parse_customers()
         except Exception as e:
             driver.quit()
             raise (e)
-    send_customers(df, analytics)
+    # send_customers(df, analytics)
 
     for location in scraper.locations.values():
         with TemporaryDirectory() as dest_dir:

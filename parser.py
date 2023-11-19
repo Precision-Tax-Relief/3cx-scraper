@@ -1,18 +1,22 @@
 import os
-from collections import defaultdict
-from datetime import datetime, date
-import hashlib
-import uuid
-
+from datetime import datetime
+from invalid_file_handler import InvalidFileHandler
 import pandas as pd
+
 DATE_FORMAT = '%b %d, %Y'
 DATETIME_FORMAT = '%b %-d, %Y  %-I:%M %p'
 
 
 class BookerParser:
-    def __init__(self, directory, invalid_file_handler=False):
+    def __init__(self, directory):
         self.directory = directory
         self.skip_invalid_move = True
+        try:
+            self.invalid_file_handler = InvalidFileHandler()
+        except Exception as e:
+            print('Could not initialize InvalidFileHandler')
+            print(e)
+            self.invalid_file_handler = None
 
         subdirectories = os.listdir(self.directory)
         categories = ['Appointments', 'Customers', 'Orders']
@@ -33,7 +37,7 @@ class BookerParser:
             'End Date/Time': 'end_date_time',
         }
         self.appointment_treatment_headers = {
-            'Treatment Name': 'name',
+            'Treatment Name': 'treatment_name',
             'Appointment On': 'appointment_on',
             'Category': 'category',
             'Subcategory': 'subcategory',
@@ -108,7 +112,6 @@ class BookerParser:
         location = os.path.basename(os.path.dirname(file_path))
         df['location'] = location
 
-
     def validate_dates_in_df_match_file_name(self, df, file_name, date_column):
         """Validate that the dates in the file name match the dates in the file
         This will warn us if an export had issues """
@@ -170,8 +173,11 @@ class BookerParser:
         return df
 
     def appointment_file_to_treatment_df(self, file_name):
-        headers = self.appointment_treatment_headers
-        headers['Booking Number'] = 'appointment'
+        headers = {
+            **self.appointment_treatment_headers,
+            **self.appointment_customer_headers,
+            'Booking Number': 'appointment'
+        }
         df = pd.read_csv(
             file_name,
             usecols=list(headers.keys()),
@@ -210,12 +216,14 @@ class BookerParser:
                 # Get the file path
                 file_path = os.path.join(appointments_dir, location, file)
                 try:
-                    print(f'Processing {file_path}')
                     appointment_df, treatment_df = self.appointment_process(file_path)
                     appointments_dfs.append(appointment_df)
                     treatments_dfs.append(treatment_df)
                 except Exception as e:
-                    raise e
+                    if self.invalid_file_handler:
+                        self.invalid_file_handler.add_error(file_path, e)
+                    else:
+                        raise e
 
         # return appointment, treatment
         return pd.concat(appointments_dfs, ignore_index=True), pd.concat(treatments_dfs, ignore_index=True)
@@ -265,7 +273,10 @@ class BookerParser:
                 try:
                     dfs.append(self.order_file_to_df(file_path))
                 except Exception as e:
-                    raise(e)
+                    if self.invalid_file_handler:
+                        self.invalid_file_handler.add_error(file_path, e)
+                    else:
+                        raise e
 
         return pd.concat(dfs, ignore_index=True)
 
@@ -281,6 +292,8 @@ class BookerParser:
 
         # Remove Curly Braces from GUID
         df['guid'].replace('[\{\}]', '', regex=True, inplace=True)
+        for index in [value for value in self.customer_headers.values() if 'phone' in value]:
+            df[index].replace(r'\D', '', regex=True, inplace=True)
 
         return df
 
@@ -296,8 +309,12 @@ class BookerParser:
         for file in files:
             # Get the file path
             file_path = os.path.join(customers_dir, file)
-            dataframes.append(self.customer_file_to_df(file_path))
+            try:
+                dataframes.append(self.customer_file_to_df(file_path))
+            except Exception as e:
+                if self.invalid_file_handler:
+                    self.invalid_file_handler.add_error(file_path, e)
+                else:
+                    raise e
 
         return pd.concat(dataframes, ignore_index=True)
-
-

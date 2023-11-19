@@ -266,7 +266,7 @@ class BookerScraper:
         for i in range(0, 10):
             export_download_button = self.wait_for_element(
                 (By.XPATH, f"//a[string()='{button_text}' and @title='download .csv file']"),
-                timeout=60 * 5,
+                timeout=30,
                 quit_on_fail=False
             )
             if export_download_button is not None:
