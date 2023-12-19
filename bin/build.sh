@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker build --no-cache -t booker-scraper:latest .
+docker build -t booker-scraper:latest .

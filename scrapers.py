@@ -1,10 +1,11 @@
 import os
 from datetime import date, timedelta, datetime
 from time import sleep
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+
 import pytz
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.wait import WebDriverWait
 
 
 class BookerScraper:
@@ -12,7 +13,7 @@ class BookerScraper:
                  driver,
                  start_date: date,
                  end_date: date,
-                 wait_time=60,
+                 wait_time=15,
                  date_time_format='%b %-d, %Y  %-I:%M %p',
                  date_format='%m/%d/%Y',
                  download_dir='/Downloads/',
@@ -46,8 +47,11 @@ class BookerScraper:
             'signin': 'https://signin.booker.com/',
             'locations': 'https://app.secure-booker.com/App/BrandAdmin/Spas/SearchSpas.aspx',
             'customers': 'https://app.secure-booker.com/App/SpaAdmin/Customers/SearchCustomers.aspx',
+            'customers_create': 'https://app.secure-booker.com/App/SpaAdmin/Customers/NewCustomer.aspx',
             'appointments': 'https://app.secure-booker.com/App/SpaAdmin/Appointments/SearchAppointments.aspx',
             'orders': 'https://app.secure-booker.com/App/SpaAdmin/Orders/Orders/SearchOrders.aspx',
+            'treatment_detail': 'https://app.secure-booker.com/App/SpaAdmin/Appointments/EditAppointment.aspx'
+                                '?AppTreatmentID={}'
         }
 
     ###############################
@@ -56,7 +60,7 @@ class BookerScraper:
     def wait_for_element(self, query: tuple, timeout: int = None, quit_on_fail: bool = True):
         timeout = timeout or self.wait_time
         try:
-            i = WebDriverWait(self.driver, timeout).until(
+            i = WebDriverWait(self.driver, timeout, poll_frequency=.05).until(
                 EC.presence_of_element_located(query)
             )
             return i
@@ -174,6 +178,10 @@ class BookerScraper:
     ###############################
     # NAVIGATION
     ###############################
+    def navigate_to_treatmnent_detail(self, treatment_id):
+        print(f'Navigating to treatment detail page. {treatment_id = }')
+        self.driver.get(self.urls['treatment_detail'].format(treatment_id))
+
     def navigate_to_appointments_page(self):
         print('Navigating to appointments page.')
         self.driver.get(self.urls['appointments'])
@@ -266,7 +274,7 @@ class BookerScraper:
         for i in range(0, 10):
             export_download_button = self.wait_for_element(
                 (By.XPATH, f"//a[string()='{button_text}' and @title='download .csv file']"),
-                timeout=30,
+                timeout=self.wait_time,
                 quit_on_fail=False
             )
             if export_download_button is not None:
@@ -303,6 +311,61 @@ class BookerScraper:
     def customer_added_last_week_flow(self):
         self.customer_flow(59303)
 
+    def customer_create_select_location(self):
+        self.select_location(self.locations['ll']['id'])
+
+    def customer_create_flow(self, customer_data: dict):
+        self.customer_create_select_location()
+        self.navigate_to_customers_page()
+        print('Navigating to create customer page.')
+        self.driver.get(self.urls['customers_create'])
+
+        print('Filling out customer form.')
+        first_name_field = self.wait_for_element(
+            (By.ID, 'ctl00_ctl00_content_content_ucDynamicForm_ctl01_ctl00_txtValue'))
+        first_name = customer_data.get('first_name', None) or customer_data.get('firstName', None)
+        if not first_name:
+            raise Exception('First name required')
+        first_name_field.send_keys(first_name)
+        last_name_field = self.wait_for_element(
+            (By.ID, 'ctl00_ctl00_content_content_ucDynamicForm_ctl04_ctl00_txtValue'))
+        last_name = customer_data.get('last_name', None) or customer_data.get('lastName', None)
+        if not last_name:
+            raise Exception('Last name required')
+        last_name_field.send_keys(last_name)
+        email = customer_data.get('email', None)
+        if email:
+            email_field = self.wait_for_element(
+                (By.ID, 'ctl00_ctl00_content_content_ucDynamicForm_ctl05_ctl00_txtValue'))
+            email_field.click()
+            email_field.send_keys(email)
+            first_name_field.click()
+        phone = customer_data.get('phone', None)
+        if phone:
+            sleep(.5)
+            from selenium.webdriver.common.keys import Keys
+            phone_field = self.wait_for_element(
+                (By.ID, 'ctl00_ctl00_content_content_ucDynamicForm_ctl11_ctl00_ctlPhone_txtMaskedNumber'))
+            phone_field.click()
+            for i in range(14):
+                phone_field.send_keys(Keys.BACKSPACE)
+            phone_field.send_keys(phone)
+            sleep(.5)
+        print('Saving customer.')
+        save_button = self.wait_for_element(
+            (By.ID, 'ctl00_ctl00_content_content_btnSubmit'))
+        save_button.click()
+        print('Customer saved.')
+        sleep(1)
+        detail_tabs = self.wait_for_element(
+            (By.XPATH, "//a[@title='Details']"))
+        detail_tabs.click()
+        print('Navigating to details tab.')
+        guid = self.wait_for_element(
+            (By.ID, "ctl00_ctl00_content_content_ucDetails_ucDynamicForm_ctl29_ctl00_lblValueEdit"))
+        guid = str(guid.text).replace('{', '').replace('}', '')
+        print(f'Customer guid: {guid}')
+        return guid
 
     ###############################
     # APPOINTMENTS
@@ -351,6 +414,30 @@ class BookerScraper:
 
         self.change_export_view(location['appointments_view_id'])
         self.appointments_export(location=location['id'])
+
+    def appointment_map_booking_numbers_to_orders(self, location, booking_numbers: list):
+        self.select_location(location['id'])
+
+        booking_order_map = {}
+        for booking_number in booking_numbers:
+            print(f'Getting order number for booking number {booking_number}')
+            self.navigate_to_appointments_page()
+            booking_number_field = self.wait_for_element((By.ID, 'ctl00_ctl00_content_content_txtBookingNumber'))
+            booking_number_field.send_keys(str(booking_number))
+            search_button = self.wait_for_element(
+                (By.XPATH, "//div[@id='ctl00_ctl00_content_content_pnlLeft']//input[@id='ctl00_ctl00_content_content_btnSearch']"))
+            search_button.click()
+            sleep(.25)
+            view_button = self.wait_for_element(
+                (By.XPATH, "//div[@id='ctl00_ctl00_content_content_upnlSearchResults']//table[@id='ctl00_ctl00_content_content_grdSearchResults']/tbody/tr[@class='xTr'][1]//a[@title='View' or @title='Review']")
+            )
+            view_button.click()
+            order_xpath = '//*[@id="ctl00_ctl00_content_content_ucViewAppointment_ucAppointmentHeaderBlock_lnkViewOrder" or @id="ctl00_ctl00_content_content_ucViewGroupAppointment_ucGroupHeaderBlock_lnkViewOrder" or @id="ctl00_ctl00_content_content_ucViewGroupAppointment_ucGroupHeaderBlock_rptOrders_ctl01_lnkViewOrder"]'
+            order_number_element = self.wait_for_element((By.XPATH, order_xpath), quit_on_fail=True)
+            booking_order_map[booking_number] = order_number_element.text
+            print(f'Order number for booking number {booking_number}: {booking_order_map[booking_number]}')
+
+        return booking_order_map
 
     ###############################
     # ORDERS
