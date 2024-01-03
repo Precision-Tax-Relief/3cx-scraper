@@ -41,6 +41,11 @@ def send_appointments(appointment_dataframe, treatment_dataframe, analytics):
     analytics.flush()
 
 
+def update_appointment_order(appointment_id, order_id, analytics):
+    analytics.object(object_id=str(appointment_id), collection='appointments', properties={'order_number': order_id})
+    analytics.flush()
+
+
 def send_orders(dataframe, analytics):
     for row in dataframe.iterrows():
         data = dict(row[1])
@@ -432,6 +437,32 @@ def appointments_test(driver, download_dir, analytics):
     send_appointments(a_df, t_df, analytics)
 
 
+def order_for_appointment(driver, download_dir, analytics, appointment_id, location_id):
+    with TemporaryDirectory() as dest_dir:
+        try:
+            scraper = BookerScraper(
+                driver=driver,
+                start_date=datetime.date.today() - datetime.timedelta(days=14),
+                end_date=datetime.date.today() + datetime.timedelta(days=2),
+                download_dir=download_dir,
+                destination_dir=dest_dir,
+            )
+            scraper.login(
+                os.environ.get('BOOKER_ACCOUNT'),
+                os.environ.get('BOOKER_USERNAME'),
+                os.environ.get('BOOKER_PASSWORD')
+            )
+            map = scraper.appointment_map_booking_numbers_to_orders(
+                {'id': location_id},
+                [appointment_id]
+            )
+            update_appointment_order(appointment_id, map[appointment_id], analytics)
+        except Exception as e:
+            driver.quit()
+            raise (e)
+        return map
+
+
 def order_test(driver, download_dir, analytics):
     with TemporaryDirectory() as dest_dir:
         try:
@@ -472,11 +503,10 @@ def appointment_map_test(driver, download_dir, analytics):
                 os.environ.get('BOOKER_PASSWORD')
             )
             map = scraper.appointment_map_booking_numbers_to_orders(
-                scraper.locations['ll'],
-                [100681410443, 100681333310, 100681249012]
+                scraper.locations['cda'],
             )
-            from pprint import pprint
-            pprint(map)
+            for k, v in map.items():
+                update_appointment_order(k, v, analytics)
         except Exception as e:
             driver.quit()
             raise (e)

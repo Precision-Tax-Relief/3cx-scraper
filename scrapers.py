@@ -317,55 +317,80 @@ class BookerScraper:
     def customer_create_flow(self, customer_data: dict):
         self.customer_create_select_location()
         self.navigate_to_customers_page()
-        print('Navigating to create customer page.')
-        self.driver.get(self.urls['customers_create'])
 
-        print('Filling out customer form.')
-        first_name_field = self.wait_for_element(
-            (By.ID, 'ctl00_ctl00_content_content_ucDynamicForm_ctl01_ctl00_txtValue'))
-        first_name = customer_data.get('first_name', None) or customer_data.get('firstName', None)
-        if not first_name:
-            raise Exception('First name required')
-        first_name_field.send_keys(first_name)
-        last_name_field = self.wait_for_element(
-            (By.ID, 'ctl00_ctl00_content_content_ucDynamicForm_ctl04_ctl00_txtValue'))
-        last_name = customer_data.get('last_name', None) or customer_data.get('lastName', None)
-        if not last_name:
-            raise Exception('Last name required')
-        last_name_field.send_keys(last_name)
-        email = customer_data.get('email', None)
-        if email:
-            email_field = self.wait_for_element(
-                (By.ID, 'ctl00_ctl00_content_content_ucDynamicForm_ctl05_ctl00_txtValue'))
-            email_field.click()
-            email_field.send_keys(email)
-            first_name_field.click()
-        phone = customer_data.get('phone', None)
-        if phone:
-            sleep(.5)
-            from selenium.webdriver.common.keys import Keys
-            phone_field = self.wait_for_element(
-                (By.ID, 'ctl00_ctl00_content_content_ucDynamicForm_ctl11_ctl00_ctlPhone_txtMaskedNumber'))
-            phone_field.click()
-            for i in range(14):
-                phone_field.send_keys(Keys.BACKSPACE)
-            phone_field.send_keys(phone)
-            sleep(.5)
-        print('Saving customer.')
-        save_button = self.wait_for_element(
-            (By.ID, 'ctl00_ctl00_content_content_btnSubmit'))
-        save_button.click()
-        print('Customer saved.')
-        sleep(1)
-        detail_tabs = self.wait_for_element(
-            (By.XPATH, "//a[@title='Details']"))
-        detail_tabs.click()
-        print('Navigating to details tab.')
-        guid = self.wait_for_element(
-            (By.ID, "ctl00_ctl00_content_content_ucDetails_ucDynamicForm_ctl29_ctl00_lblValueEdit"))
-        guid = str(guid.text).replace('{', '').replace('}', '')
-        print(f'Customer guid: {guid}')
-        return guid
+        import time
+        from functools import wraps
+
+        def retry(max_attempts, delay_seconds):
+            def decorator(func):
+                @wraps(func)
+                def wrapper(*args, **kwargs):
+                    attempts = 0
+                    while attempts < max_attempts:
+                        try:
+                            return func(*args, **kwargs)
+                        except Exception as e:
+                            attempts += 1
+                            print(f"Attempt {attempts}/{max_attempts} failed: {e}")
+                            time.sleep(delay_seconds)
+                    return func(*args, **kwargs)
+
+                return wrapper
+
+            return decorator
+
+        @retry(max_attempts=3, delay_seconds=0.1)
+        def create_customer():
+            print('Navigating to create customer page.')
+            self.driver.get(self.urls['customers_create'])
+            print('Filling out customer form.')
+            first_name = customer_data.get('first_name', None) or customer_data.get('firstName', None)
+            if not first_name:
+                raise Exception('First name required')
+            first_name_field = self.wait_for_element(
+                (By.ID, 'ctl00_ctl00_content_content_ucDynamicForm_ctl01_ctl00_txtValue'))
+            first_name_field.send_keys(first_name)
+            last_name = customer_data.get('last_name', None) or customer_data.get('lastName', None)
+            if not last_name:
+                raise Exception('Last name required')
+            last_name_field = self.wait_for_element(
+                (By.ID, 'ctl00_ctl00_content_content_ucDynamicForm_ctl04_ctl00_txtValue'))
+            last_name_field.send_keys(last_name)
+            email = customer_data.get('email', None)
+            if email:
+                email_field = self.wait_for_element(
+                    (By.ID, 'ctl00_ctl00_content_content_ucDynamicForm_ctl05_ctl00_txtValue'))
+                email_field.click()
+                email_field.send_keys(email)
+                first_name_field.click()
+            phone = customer_data.get('phone', None)
+            if phone:
+                sleep(.5)
+                from selenium.webdriver.common.keys import Keys
+                phone_field = self.wait_for_element(
+                    (By.ID, 'ctl00_ctl00_content_content_ucDynamicForm_ctl11_ctl00_ctlPhone_txtMaskedNumber'))
+                phone_field.click()
+                for i in range(14):
+                    phone_field.send_keys(Keys.BACKSPACE)
+                phone_field.send_keys(phone)
+                sleep(.5)
+            print('Saving customer.')
+            save_button = self.wait_for_element(
+                (By.ID, 'ctl00_ctl00_content_content_btnSubmit'))
+            save_button.click()
+            print('Customer saved.')
+            sleep(1)
+            detail_tabs = self.wait_for_element(
+                (By.XPATH, "//a[@title='Details']"))
+            detail_tabs.click()
+            print('Navigating to details tab.')
+            guid = self.wait_for_element(
+                (By.ID, "ctl00_ctl00_content_content_ucDetails_ucDynamicForm_ctl29_ctl00_lblValueEdit"))
+            guid = str(guid.text).replace('{', '').replace('}', '')
+            print(f'Customer guid: {guid}')
+            return guid
+
+        return create_customer()
 
     ###############################
     # APPOINTMENTS
@@ -429,8 +454,12 @@ class BookerScraper:
             search_button.click()
             sleep(.25)
             view_button = self.wait_for_element(
-                (By.XPATH, "//div[@id='ctl00_ctl00_content_content_upnlSearchResults']//table[@id='ctl00_ctl00_content_content_grdSearchResults']/tbody/tr[@class='xTr'][1]//a[@title='View' or @title='Review']")
+                (By.XPATH, "//div[@id='ctl00_ctl00_content_content_upnlSearchResults']//table[@id='ctl00_ctl00_content_content_grdSearchResults']/tbody/tr[@class='xTr'][1]//a[@title='View' or @title='Review']"),
+                quit_on_fail=False
             )
+            if view_button is None:
+                print(f'Appointment not found for booking number {booking_number}')
+                continue
             view_button.click()
             order_xpath = '//*[@id="ctl00_ctl00_content_content_ucViewAppointment_ucAppointmentHeaderBlock_lnkViewOrder" or @id="ctl00_ctl00_content_content_ucViewGroupAppointment_ucGroupHeaderBlock_lnkViewOrder" or @id="ctl00_ctl00_content_content_ucViewGroupAppointment_ucGroupHeaderBlock_rptOrders_ctl01_lnkViewOrder"]'
             order_number_element = self.wait_for_element((By.XPATH, order_xpath), quit_on_fail=True)
