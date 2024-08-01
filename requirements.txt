@@ -80,3 +80,5 @@ wrapt==1.12.1
 yarl==1.9.2
 yaspin==2.1.0
 zipp==3.7.0
+SQLAlchemy==1.4.51
+psycopg2-binary==2.9.9

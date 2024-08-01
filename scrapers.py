@@ -6,6 +6,7 @@ import pytz
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
+from tempfile import TemporaryDirectory
 
 
 class BookerScraper:
@@ -303,7 +304,35 @@ class BookerScraper:
         self.move_file('Customer', start_date=export_time)
 
     def customer_added_today_flow(self):
-        self.customer_flow(59300)
+        self.select_location(self.locations['ll']['id'])
+        self.navigate_to_customers_page()
+        self.change_export_view(59300)
+        export_time = datetime.now(self.timezone)
+
+        select_more_rows_xpath = "//select[@name='ctl00$ctl00$content$content$grdSearchResults$ctl14$ctl02']"
+        select_more_rows = self.wait_for_element((By.XPATH, select_more_rows_xpath), quit_on_fail=False)
+        if select_more_rows is not None:
+            select_more_rows.click()
+            select_more_rows.find_element(By.XPATH, ".//option[@value='100']").click()
+            sleep(3)
+
+        table_xpath = "//table[@class='grdSearchResults']/tbody"
+        table = self.wait_for_element((By.XPATH, table_xpath))
+        rows = table.find_elements(By.XPATH, "./tr[@align='left']")
+        print(f'Found {len(rows)} rows')
+
+
+        file_path = os.path.join(self.download_dir, f'Customer.csv')
+        with open(file_path, 'w') as f:
+            for row in rows:
+                cells = row.find_elements(By.XPATH, ".//th | .//td")
+                for cell in cells:
+                    f.write(f'"{cell.text}"')
+                    f.write(',')
+                f.write('\n')
+        with open(file_path, 'r') as f:
+            print(f.read())
+        self.move_file('Customer', start_date=export_time)
 
     def customer_added_last_year_flow(self):
         self.customer_flow(59301)
@@ -378,19 +407,112 @@ class BookerScraper:
             save_button = self.wait_for_element(
                 (By.ID, 'ctl00_ctl00_content_content_btnSubmit'))
             save_button.click()
-            print('Customer saved.')
+            print('Customer submitted.')
             sleep(1)
             detail_tabs = self.wait_for_element(
-                (By.XPATH, "//a[@title='Details']"))
-            detail_tabs.click()
-            print('Navigating to details tab.')
-            guid = self.wait_for_element(
-                (By.ID, "ctl00_ctl00_content_content_ucDetails_ucDynamicForm_ctl29_ctl00_lblValueEdit"))
-            guid = str(guid.text).replace('{', '').replace('}', '')
-            print(f'Customer guid: {guid}')
-            return guid
+                (By.XPATH, "//a[@title='Details']"),
+                quit_on_fail=False,
+                timeout=self.wait_time // 2
+            )
+            if detail_tabs is not None:
+                detail_tabs.click()
+                print('Navigating to details tab.')
+                guid = self.wait_for_element(
+                    (By.ID, "ctl00_ctl00_content_content_ucDetails_ucDynamicForm_ctl29_ctl00_lblValueEdit"))
+                guid = str(guid.text).replace('{', '').replace('}', '')
+                print(f'Customer guid: {guid}')
+                return guid
+            else:
+                customer_exists_error = self.wait_for_element(
+                    (By.XPATH, "//span[@class='xError' and contains(text(), 'Another customer exists')]"))
+                if customer_exists_error is not None:
+                    print('Customer already exists.')
+                    if email:
+                        print('Searching for customer by email.')
+                        guid = self.customer_get_guid_by_email(email)
+                        if guid:
+                            return guid
+                        print('Customer not found by email.')
+                    elif phone:
+                        print('Searching for customer by phone.')
+                        guid = self.customer_get_guid_by_phone(phone)
+                        if guid:
+                            return guid
+                        print('Customer not found by phone.')
+                    raise Exception('Customer already exists but could not be found by email or phone.')
+                raise Exception('Unexpected error creating customer')
 
         return create_customer()
+
+    def customer_get_guid_by_email(self, email: str):
+        self.customer_create_select_location()
+        self.navigate_to_customers_page()
+
+        email_field = self.wait_for_element((By.ID, 'ctl00_ctl00_content_content_txtEmail'))
+        email_field.send_keys(email)
+        search_button = self.wait_for_element(
+            (By.ID, 'ctl00_ctl00_content_content_btnSearch'))
+        search_button.click()
+        sleep(1)
+
+        table_xpath = "//table[@class='grdSearchResults']/tbody"
+        table = self.wait_for_element((By.XPATH, table_xpath))
+        rows = table.find_elements(By.TAG_NAME, 'tr')[1:]
+        if len(rows) == 0:
+            print(f'No customers found with email {email}')
+            return None
+        elif len(rows) > 1:
+            print(f'WARNING: Multiple customers found with email {email}')
+        review_button = rows[0].find_element(By.XPATH, ".//a[@title='Review']")
+        review_button.click()
+        sleep(1)
+        detail_tabs = self.wait_for_element(
+            (By.XPATH, "//a[@title='Details']"))
+        detail_tabs.click()
+        print('Navigating to details tab.')
+        guid = self.wait_for_element(
+            (By.ID, "ctl00_ctl00_content_content_ucDetails_ucDynamicForm_ctl29_ctl00_lblValueEdit"))
+        guid = str(guid.text).replace('{', '').replace('}', '')
+        print(f'Customer guid: {guid}')
+        return guid
+
+    def customer_get_guid_by_phone(self, phone: str):
+        from selenium.webdriver import Keys
+        self.customer_create_select_location()
+        self.navigate_to_customers_page()
+
+        phone_field = self.wait_for_element((By.ID, 'ctl00_ctl00_content_content_ctlPhoneNumberStrict_txtMaskedNumber'))
+        for i in range(14):
+            phone_field.send_keys(Keys.BACKSPACE)
+        phone_field.send_keys(phone)
+        search_button = self.wait_for_element(
+            (By.ID, 'ctl00_ctl00_content_content_btnSearch'))
+        search_button.click()
+        sleep(1)
+
+        table_xpath = "//table[@class='grdSearchResults']/tbody"
+        table = self.wait_for_element((By.XPATH, table_xpath))
+        rows = table.find_elements(By.TAG_NAME, 'tr')[1:]
+        if len(rows) == 0:
+            print(f'No customers found with phone {phone}')
+            return None
+        elif len(rows) > 1:
+            print(f'WARNING: Multiple customers found with phone {phone}')
+        review_button = rows[0].find_element(By.XPATH, ".//a[@title='Review']")
+        review_button.click()
+        sleep(1)
+        detail_tabs = self.wait_for_element(
+            (By.XPATH, "//a[@title='Details']"))
+        detail_tabs.click()
+        print('Navigating to details tab.')
+        guid = self.wait_for_element(
+            (By.ID, "ctl00_ctl00_content_content_ucDetails_ucDynamicForm_ctl29_ctl00_lblValueEdit"))
+        guid = str(guid.text).replace('{', '').replace('}', '')
+        print(f'Customer guid: {guid}')
+        return guid
+
+
+
 
     ###############################
     # APPOINTMENTS
@@ -413,6 +535,7 @@ class BookerScraper:
     def appointments_export(self, location):
         current_time = self.start_date
         while current_time < self.end_date + self.export_period:
+            sleep(60)
             file_count = self.get_download_dir_filecount()
             query_end = current_time + self.export_period - timedelta(days=1)
             self.appointments_export_chunked(current_time, query_end)
@@ -443,7 +566,7 @@ class BookerScraper:
     def appointment_map_booking_numbers_to_orders(self, location, booking_numbers: list):
         self.select_location(location['id'])
 
-        booking_order_map = {}
+        # booking_order_map = {}
         for booking_number in booking_numbers:
             print(f'Getting order number for booking number {booking_number}')
             self.navigate_to_appointments_page()
@@ -463,10 +586,12 @@ class BookerScraper:
             view_button.click()
             order_xpath = '//*[@id="ctl00_ctl00_content_content_ucViewAppointment_ucAppointmentHeaderBlock_lnkViewOrder" or @id="ctl00_ctl00_content_content_ucViewGroupAppointment_ucGroupHeaderBlock_lnkViewOrder" or @id="ctl00_ctl00_content_content_ucViewGroupAppointment_ucGroupHeaderBlock_rptOrders_ctl01_lnkViewOrder"]'
             order_number_element = self.wait_for_element((By.XPATH, order_xpath), quit_on_fail=True)
-            booking_order_map[booking_number] = order_number_element.text
-            print(f'Order number for booking number {booking_number}: {booking_order_map[booking_number]}')
+            order_number = order_number_element.text
+            # booking_order_map[booking_number] = order_number_element.text
+            print(f'Order number for booking number {booking_number}: {order_number}')
+            yield booking_number, order_number
 
-        return booking_order_map
+        return
 
     ###############################
     # ORDERS

@@ -47,6 +47,7 @@ COPY scrapers.py ${LAMBDA_TASK_ROOT}
 COPY parser.py ${LAMBDA_TASK_ROOT}
 COPY tasks.py ${LAMBDA_TASK_ROOT}
 COPY invalid_file_handler.py ${LAMBDA_TASK_ROOT}
+COPY models.py ${LAMBDA_TASK_ROOT}
 
 #COPY downloads /downloads
 

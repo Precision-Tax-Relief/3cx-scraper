@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from invalid_file_handler import InvalidFileHandler
+# from invalid_file_handler import InvalidFileHandler
 import pandas as pd
 
 DATE_FORMAT = '%b %d, %Y'
@@ -12,7 +12,8 @@ class BookerParser:
         self.directory = directory
         self.skip_invalid_move = True
         try:
-            self.invalid_file_handler = InvalidFileHandler()
+            # self.invalid_file_handler = InvalidFileHandler()
+            self.invalid_file_handler = None
         except Exception as e:
             print('Could not initialize InvalidFileHandler')
             print(e)

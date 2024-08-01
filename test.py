@@ -1,14 +1,22 @@
 import logging
-
 import segment.analytics as analytics
-analytics.write_key = 'flhj7cmD6zKS8RVq0arL4PMkI9psUQO2'
-analytics.debug = True
-analytics.send = True
+
 seg_logger = logging.getLogger('segment')
 seg_logger.setLevel(logging.DEBUG)
 seg_logger.addHandler(logging.StreamHandler())
 
-analytics.identify(user_id='747b512e-91d9-43ad-915c-1a318959b0ba', traits={
-    'phone_number': '9709488141'
+test1 = '8T7p3QOwdfqOi9h5XszVCDZaBU3DmgMi'
+analytics.write_key = test1
+analytics.debug = True
+analytics.identify(anonymous_id='test1', traits={
+    'test': '1'
 })
-analytics.shutdown()
+test1_client = analytics.default_client
+test1_client.flush()
+analytics.default_client = None
+
+test2 = 'kCZYPQD8kcjQSc0khgMA8nkaHyr0NVMF'
+analytics.write_key = test2
+analytics.identify(anonymous_id='test2', traits={
+    'test': '2'
+})
