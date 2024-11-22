@@ -6,7 +6,7 @@ WORKDIR /var/task
 RUN yum install -y wget unzip
 
 # Install libraries for Chrome and ChromeDriver binaries
-RUN yum install -y wget unzip \
+RUN yum install -y \
     libX11 libX11-devel libxcb libxcb-devel \
     atk atk-devel at-spi2-atk at-spi2-atk-devel \
     cups-libs libdrm libdbus xkbcommon at-spi2-core \

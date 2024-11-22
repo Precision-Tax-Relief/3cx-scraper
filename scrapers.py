@@ -392,8 +392,9 @@ class BookerScraper:
                 email_field.click()
                 email_field.send_keys(email)
                 first_name_field.click()
-            phone = customer_data.get('phone', None)
+            phone = customer_data.get('phone', '')
             if phone:
+                phone = phone.replace('+1', '')
                 sleep(.5)
                 from selenium.webdriver.common.keys import Keys
                 phone_field = self.wait_for_element(

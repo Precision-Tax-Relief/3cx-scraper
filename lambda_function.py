@@ -200,4 +200,4 @@ def handler(event, context):
 
 
 if __name__ == '__main__':
-    handler({"task": "appointments_booked"}, {})
+    handler({"task": "customers_today"}, {})

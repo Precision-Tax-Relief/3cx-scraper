@@ -201,7 +201,7 @@ class BookerParser:
 
         return appointment_df, treatment_df
 
-    def import_appointments(self):
+    def mport_appointments(self):
         # Get the appointments directory
         appointments_dir = os.path.join(self.directory, 'Appointment')
 
@@ -295,6 +295,7 @@ class BookerParser:
         df['guid'].replace('[\{\}]', '', regex=True, inplace=True)
         for index in [value for value in self.customer_headers.values() if 'phone' in value]:
             df[index].replace(r'\D', '', regex=True, inplace=True)
+            df[index] = df[index].apply(lambda x: '+1' + x if x and not x.startswith('+1') else x)
 
         return df
 
