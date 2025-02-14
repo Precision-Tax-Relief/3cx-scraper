@@ -24,8 +24,9 @@ def get_env_variable(var_name, default=None):
 
 
 
-ACCOUNT = get_env_variable('ACCOUNT')
-PASSWORD =get_env_variable('PASSWORD')
+ACCOUNT  = get_env_variable('ACCOUNT')
+PASSWORD = get_env_variable('PASSWORD')
+OUT_URL  = get_env_variable('OUT_URL')
 
 
 def check_internet_connection(url="https://www.google.com", timeout=5):

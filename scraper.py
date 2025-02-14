@@ -37,8 +37,9 @@ class Scraper:
     ###############################
     # UTILITY FUNCTIONS
     ###############################
-    def wait_for_element(self, query: tuple, timeout: int = None, quit_on_fail: bool = True):
-        timeout = timeout or self.wait_time
+    def wait_for_element(self, query: tuple, timeout: int = 15, quit_on_fail: bool = True):
+        # timeout = timeout or self.wait_time
+        timeout = 30
         try:
             i = WebDriverWait(self.driver, timeout, poll_frequency=.25).until(
                 EC.presence_of_element_located(query)
@@ -176,6 +177,7 @@ class Scraper:
         password_field.send_keys(password)
 
         self.driver.find_element(By.ID, 'submitBtn').click()
+        sleep(2)
 
 
     ###############################
@@ -185,28 +187,34 @@ class Scraper:
         print('Getting report from Call Report table.')
         table = self.wait_for_element((By.XPATH, '//div[@id="scrollableList"]//table'), quit_on_fail=True)
         print('Got table')
-        
-        # Get column names for thead
-        thead = table.find_element(By.XPATH, '//thead')
-        table_headers = thead.find_elements(By.XPATH, '//th')
-        
+
+        # Get column names from thead
+        thead = table.find_element(By.XPATH, './/thead')
+        table_headers = thead.find_elements(By.XPATH, './/th')
+
         headers_text = []
-        for header in table_headers[:-1]:  # Last column is the actions button.
-            headers_text.append(header.text)
-            
+        for header in table_headers[:-1]:  # Last column is the actions button
+            headers_text.append(header.text.strip())
+
         print(f'Found {len(headers_text)} headers')
         print(', '.join(headers_text))
-        csv_text = f'{", ".join(headers_text)}\n'
-        rows = table.find_elements(By.XPATH, '//tr')
-        
-        # TODO check for multiple pages when there are a lot of calls
-        for rows in rows:
-            cells = rows.find_elements(By.XPATH, '//td')
+
+        # Start building CSV text with headers
+        csv_text = f'{",".join(headers_text)}\n'
+
+        # Get tbody and its rows
+        tbody = table.find_element(By.XPATH, './/tbody')
+        rows = tbody.find_elements(By.XPATH, './/tr')
+
+        # Process each row
+        for row in rows:
+            cells = row.find_elements(By.XPATH, './/td')
             cells_text = []
-            for cell in cells[:-1]:
-                cells_text.append(cell.text)
-            csv_text += f'{", ".join(cells_text)}\n'
-        
+            for cell in cells[:-1]:  # Skip the last cell (actions)
+                cells_text.append(cell.text.strip())
+            if cells_text:  # Only add non-empty rows
+                csv_text += f'{",".join(cells_text)}\n'
+
         return csv_text
         
 
