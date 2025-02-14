@@ -12,9 +12,19 @@ def scrape_3cx(driver, logger):
             os.environ.get('PASSWORD'),
         )
         logger.info("Logged in")
+        scraper.navigate_to_call_report_admin()
+        logger.info("Navigating to call-report admin")
+        csv_text = scraper.get_call_reports_table()
+        logger.info("got call_reports_table")
     except Exception as e:
         driver.quit()
         raise (e)
+    
+    driver.quit()
+    
+    
+    
+    
     
     
 

@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 
 import logging
+
 logger = logging.getLogger()
 
 
@@ -30,7 +31,7 @@ class Scraper:
         self.destination_dir = destination_dir
         self.urls = {
             'signin': 'https://precisiontaxrelief.3cx.us:5001/#/login',
-            'call_history': 'https://precisiontaxrelief.3cx.us:5001/#/call_history'
+            'call_reports': 'https://precisiontaxrelief.3cx.us:5001/#/office/reports/call-reports'
         }
 
     ###############################
@@ -39,7 +40,7 @@ class Scraper:
     def wait_for_element(self, query: tuple, timeout: int = None, quit_on_fail: bool = True):
         timeout = timeout or self.wait_time
         try:
-            i = WebDriverWait(self.driver, timeout, poll_frequency=.05).until(
+            i = WebDriverWait(self.driver, timeout, poll_frequency=.25).until(
                 EC.presence_of_element_located(query)
             )
             return i
@@ -157,32 +158,10 @@ class Scraper:
     ###############################
     # NAVIGATION
     ###############################
-    def navigate_to_treatmnent_detail(self, treatment_id):
-        print(f'Navigating to treatment detail page. {treatment_id = }')
-        self.driver.get(self.urls['treatment_detail'].format(treatment_id))
+    def navigate_to_call_report_admin(self):
+        logger.info(f'Navigating to Call Report page in Admin Console')
+        self.driver.get(self.urls['call_reports'])
 
-    def navigate_to_appointments_page(self):
-        print('Navigating to appointments page.')
-        self.driver.get(self.urls['appointments'])
-
-    def navigate_to_orders_page(self):
-        print('Navigating to orders page.')
-        self.driver.get(self.urls['orders'])
-
-    def navigate_to_locations_page(self):
-        print('Navigating to locations page.')
-        self.driver.get(self.urls['locations'])
-
-    def navigate_to_customers_page(self):
-        print('Navigating to customers page.')
-        self.driver.get(self.urls['customers'])
-
-    def select_location(self, location_code):
-        self.navigate_to_locations_page()
-        print('Selecting location.')
-        location_select = self.wait_for_element((By.XPATH, f"//a[@href='Impersonate.aspx?SpaID={location_code}']"))
-        location_select.click()
-        sleep(1)
 
     ###############################
     # AUTHENTICATION
@@ -197,6 +176,39 @@ class Scraper:
         password_field.send_keys(password)
 
         self.driver.find_element(By.ID, 'submitBtn').click()
+
+
+    ###############################
+    # CALL REPORTING
+    ###############################
+    def get_call_reports_table(self):
+        print('Getting report from Call Report table.')
+        table = self.wait_for_element((By.XPATH, '//div[@id="scrollableList"]//table'), quit_on_fail=True)
+        print('Got table')
+        
+        # Get column names for thead
+        thead = table.find_element(By.XPATH, '//thead')
+        table_headers = thead.find_elements(By.XPATH, '//th')
+        
+        headers_text = []
+        for header in table_headers[:-1]:  # Last column is the actions button.
+            headers_text.append(header.text)
+            
+        print(f'Found {len(headers_text)} headers')
+        print(', '.join(headers_text))
+        csv_text = f'{", ".join(headers_text)}\n'
+        rows = table.find_elements(By.XPATH, '//tr')
+        
+        # TODO check for multiple pages when there are a lot of calls
+        for rows in rows:
+            cells = rows.find_elements(By.XPATH, '//td')
+            cells_text = []
+            for cell in cells[:-1]:
+                cells_text.append(cell.text)
+            csv_text += f'{", ".join(cells_text)}\n'
+        
+        return csv_text
+        
 
     ###############################
     # CUSTOMERS

@@ -10,7 +10,7 @@ from tasks import scrape_3cx
 
 
 logger = logging.getLogger()
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', encoding='utf-8')
+logging.basicConfig(level=logging.ERROR, encoding='utf-8')
 logger.addHandler(logging.StreamHandler(sys.stdout))
 load_dotenv()
 
