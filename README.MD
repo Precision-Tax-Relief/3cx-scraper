@@ -1,4 +1,4 @@
-# Serverless Booker Scraper
+# Serverless 3CX Scraper
 
 This is a tool that uses Selenium and AWS Lambda that scrapes a booker account for customer appointments and orders.
 It then sends this data to Segment using my fork of their python API library.

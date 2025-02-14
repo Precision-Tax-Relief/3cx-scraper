@@ -9,7 +9,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from tempfile import TemporaryDirectory
 
 
-class BookerScraper:
+class Scraper:
     def __init__(self,
                  driver,
                  start_date: date,
