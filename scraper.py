@@ -2,11 +2,9 @@ import os
 from datetime import date, timedelta, datetime
 from time import sleep
 
-import pytz
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
-from tempfile import TemporaryDirectory
 
 import logging
 logger = logging.getLogger()
@@ -30,17 +28,9 @@ class Scraper:
         self.export_period = timedelta(days=export_period)
         self.download_dir = download_dir
         self.destination_dir = destination_dir
-        self.timezone = pytz.timezone('America/Los_Angeles')
         self.urls = {
             'signin': 'https://precisiontaxrelief.3cx.us:5001/#/login',
-            # 'signin': 'https://signin.booker.com/',
-            # 'locations': 'https://app.secure-booker.com/App/BrandAdmin/Spas/SearchSpas.aspx',
-            # 'customers': 'https://app.secure-booker.com/App/SpaAdmin/Customers/SearchCustomers.aspx',
-            # 'customers_create': 'https://app.secure-booker.com/App/SpaAdmin/Customers/NewCustomer.aspx',
-            # 'appointments': 'https://app.secure-booker.com/App/SpaAdmin/Appointments/SearchAppointments.aspx',
-            # 'orders': 'https://app.secure-booker.com/App/SpaAdmin/Orders/Orders/SearchOrders.aspx',
-            # 'treatment_detail': 'https://app.secure-booker.com/App/SpaAdmin/Appointments/EditAppointment.aspx'
-            #                     '?AppTreatmentID={}'
+            'call_history': 'https://precisiontaxrelief.3cx.us:5001/#/call_history'
         }
 
     ###############################

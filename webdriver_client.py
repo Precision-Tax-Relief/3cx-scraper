@@ -6,8 +6,6 @@ import os
 
 logging.getLogger('segment').setLevel('DEBUG')
 
-
-# Define Chrome options to open the browser in headless mode
 def chrome_headless(logger, download_dir=None):
     options = Options()
     options.add_argument('--headless')
@@ -18,7 +16,12 @@ def chrome_headless(logger, download_dir=None):
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-dev-tools")
     options.add_argument("--no-zygote")
-    options.binary_location = os.path.join(os.getcwd(), "chrome-linux64", "chrome")
+
+    # Use environment variables for Chrome binary and ChromeDriver paths
+    chrome_binary = os.getenv('CHROME_BINARY', '/usr/bin/chromium-browser')
+    chromedriver_path = os.getenv('CHROMEDRIVER_PATH', '/usr/bin/chromedriver')
+
+    options.binary_location = chrome_binary
 
     # Set download directory
     prefs = {
@@ -31,18 +34,18 @@ def chrome_headless(logger, download_dir=None):
     options.add_experimental_option('prefs', prefs)
 
     # Setup ChromeDriver
-    chrome_driver_binary = os.path.join(os.getcwd(), "chromedriver-linux64", "chromedriver")
-    service = Service(os.path.join(os.getcwd(), "chromedriver-linux64", "chromedriver"))
-    logger.info(f'{chrome_driver_binary = }')
-    logger.info(f'{os.path.isfile(chrome_driver_binary) = }')
+    service = Service(chromedriver_path)
+    logger.info(f'ChromeDriver path: {chromedriver_path}')
+    logger.info(f'Chrome binary path: {chrome_binary}')
+
     try:
         driver = webdriver.Chrome(service=service, options=options)
     except Exception as e:
-        logger.error(e)
+        logger.error(f'Failed to initialize Chrome driver: {str(e)}')
         raise e
+
     driver.maximize_window()
     return driver
-
 
 def chrome_testing(download_dir=None):
     options = Options()
