@@ -46,17 +46,3 @@ def chrome_headless(logger, download_dir=None):
 
     driver.maximize_window()
     return driver
-
-def chrome_testing(download_dir=None):
-    options = Options()
-    prefs = {
-        "download.prompt_for_download": False,
-        "download.directory_upgrade": True,
-        "safebrowsing.enabled": True
-    }
-    if download_dir is not None:
-        prefs["download.default_directory"] = download_dir
-    options.add_experimental_option('prefs', prefs)
-    driver = webdriver.Chrome(options=options)
-    driver.maximize_window()
-    return driver
