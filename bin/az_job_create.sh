@@ -29,8 +29,8 @@ az container create \
   --resource-group PTR03-RG \
   --name 3cx-scraper-job \
   --image ptr033cxcr.azurecr.io/3cx-scraper:latest \
-  --cpu 1 \
-  --memory 1 \
+  --cpu 2 \
+  --memory 2 \
   --location $ACR_REGION \
   --registry-login-server ptr033cxcr.azurecr.io \
   --registry-username $ACR_USERNAME \
