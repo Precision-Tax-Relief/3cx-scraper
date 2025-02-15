@@ -58,8 +58,15 @@ class Scraper:
     # NAVIGATION
     ###############################
     def navigate_to_call_report_admin(self):
-        logger.info(f'Navigating to Call Report page in Admin Console')
+        print(f'Navigating to Call Report page in Admin Console')
         self.driver.get(self.urls['call_reports'])
+
+        # Wait for the page to be fully loaded
+        WebDriverWait(self.driver, 30).until(
+            lambda driver: driver.execute_script('return document.readyState') == 'complete'
+        )
+        print('Page loaded completely')
+        sleep(10)
 
 
     ###############################
@@ -75,7 +82,6 @@ class Scraper:
         password_field.send_keys(password)
 
         self.driver.find_element(By.ID, 'submitBtn').click()
-        sleep(2)
 
 
     ###############################
@@ -83,8 +89,14 @@ class Scraper:
     ###############################
     def get_call_reports_table(self):
         print('Getting report from Call Report table.')
+
+        # Wait for table to be present
         table = self.wait_for_element((By.XPATH, '//div[@id="scrollableList"]//table'), quit_on_fail=True)
         print('Got table')
+
+        # Wait for rows to be loaded (wait for at least one row in tbody)
+        self.wait_for_element((By.XPATH, '//div[@id="scrollableList"]//table//tbody/tr[1]'), timeout=30)
+        print('Got first row, table is populated')
 
         # Get column names from thead
         thead = table.find_element(By.XPATH, './/thead')
@@ -102,7 +114,12 @@ class Scraper:
 
         # Get tbody and its rows
         tbody = table.find_element(By.XPATH, './/tbody')
-        rows = tbody.find_elements(By.XPATH, './/tr')
+
+        # Add explicit wait for all rows to be loaded
+        rows = WebDriverWait(self.driver, 30).until(
+            lambda x: tbody.find_elements(By.XPATH, './/tr')
+        )
+        print(f'Found {len(rows)} rows')
 
         # Process each row
         for row in rows:
@@ -110,7 +127,8 @@ class Scraper:
             cells_text = []
             for cell in cells[:-1]:  # Skip the last cell (actions)
                 cells_text.append(cell.text.strip())
-            if cells_text:  # Only add non-empty rows
-                csv_text += f'{",".join(cells_text)}\n'
+            row_text = f'{",".join(cells_text)}\n'
+            print(row_text)
+            csv_text += row_text
 
         return csv_text

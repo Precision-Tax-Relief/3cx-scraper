@@ -4,9 +4,6 @@
 ACR_NAME="PTR033cxCR"
 ACR_REGION="westus2"
 
-echo "Registering Microsoft.ContainerInstance provider..."
-az provider register --namespace Microsoft.ContainerInstance
-
 # Get the credentials from Azure
 echo "Getting ACR credentials..."
 CREDS=$(az acr credential show --name $ACR_NAME)

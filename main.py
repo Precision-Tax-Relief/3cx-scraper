@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from webdriver_client import chrome_headless
 from tasks import scrape_3cx
 
+# Force stdout to be unbuffered
+sys.stdout.reconfigure(line_buffering=True)
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.ERROR, encoding='utf-8')
