@@ -5,7 +5,7 @@ import sys
 import requests
 from dotenv import load_dotenv
 
-from webdriver_client import chrome_headless
+from webdriver_client import chrome_headless, chrome_testing
 from tasks import scrape_3cx
 
 # Force stdout to be unbuffered
@@ -53,7 +53,10 @@ if __name__ == '__main__':
     status_code = check_internet_connection()
     log = f'Internet connection status: {status_code}'
     logger.debug(log)
-    driver = chrome_headless(logger)
+    if os.environ.get('DEBUG'):
+        driver = chrome_testing()
+    else:
+        driver = chrome_headless(logger)
     scrape_3cx(driver, logger)
     logger.info(f'Task completed')
     driver.quit()
