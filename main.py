@@ -54,6 +54,7 @@ if __name__ == '__main__':
     log = f'Internet connection status: {status_code}'
     logger.debug(log)
     if os.environ.get('DEBUG'):
+        print('Running DEBUG mode')
         driver = chrome_testing()
     else:
         driver = chrome_headless(logger)
