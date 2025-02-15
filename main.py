@@ -8,8 +8,6 @@ from dotenv import load_dotenv
 from webdriver_client import chrome_headless, chrome_testing
 from tasks import scrape_3cx
 
-# Force stdout to be unbuffered
-sys.stdout.reconfigure(line_buffering=True)
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.ERROR, encoding='utf-8')
@@ -18,12 +16,12 @@ load_dotenv()
 
 MISSING_ENVIRONMENT_VARIABLES = []
 
+
 def get_env_variable(var_name, default=None):
     value = os.getenv(var_name, default)
     if not value:
         MISSING_ENVIRONMENT_VARIABLES.append(var_name)
     return value
-
 
 
 ACCOUNT  = get_env_variable('ACCOUNT')
@@ -38,6 +36,7 @@ def check_internet_connection(url="https://www.google.com", timeout=5):
         return True if response.status_code == 200 else False
     except requests.ConnectionError:
         return False
+
 
 if __name__ == '__main__':
     if len(MISSING_ENVIRONMENT_VARIABLES) > 0:

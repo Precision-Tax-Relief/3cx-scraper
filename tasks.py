@@ -34,10 +34,10 @@ def create_row_hash(row):
 
 
 def scrape_3cx(driver, logger):
+    scraper = Scraper(
+        driver=driver
+    )
     try:
-        scraper = Scraper(
-            driver=driver
-        )
         scraper.login(
             os.environ.get('ACCOUNT'),
             os.environ.get('PASSWORD'),

@@ -1,7 +1,6 @@
 import os
-from datetime import date, timedelta, datetime
 from time import sleep
-
+from datetime import datetime
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
@@ -65,9 +64,8 @@ class Scraper:
         WebDriverWait(self.driver, 30).until(
             lambda driver: driver.execute_script('return document.readyState') == 'complete'
         )
+        sleep(2)
         print('Page loaded completely')
-        sleep(10)
-
 
     ###############################
     # AUTHENTICATION
@@ -82,7 +80,7 @@ class Scraper:
         password_field.send_keys(password)
 
         self.driver.find_element(By.ID, 'submitBtn').click()
-
+        sleep(5)
 
     ###############################
     # CALL REPORTING
@@ -132,3 +130,21 @@ class Scraper:
             csv_text += row_text
 
         return csv_text
+
+    ###############################
+    # TESTING
+    ###############################
+    def take_screenshot(self, name):
+        """
+        Takes a screenshot and saves it to the screenshots directory
+        """
+        try:
+            os.makedirs('screenshots', exist_ok=True)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f'screenshots/{name}_{timestamp}.png'
+            self.driver.save_screenshot(filename)
+            logger.info(f"Screenshot saved: {filename}")
+        except Exception as e:
+            logger.error(f"Failed to take screenshot: {str(e)}")
+
+
