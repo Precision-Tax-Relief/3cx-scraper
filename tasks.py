@@ -64,6 +64,10 @@ def scrape_3cx(driver, logger):
             on_bad_lines='warn'
         )
 
+        if df.empty:
+            logger.info("No data available in the CSV. Skipping further processing.")
+            return  # Skip the rest of the function
+
         # Convert column names to snake case
         df.columns = [to_snake_case(col) for col in df.columns]
 
