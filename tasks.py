@@ -14,7 +14,7 @@ logging.basicConfig(
     encoding='utf-8',
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger.addHandler(logging.StreamHandler(sys.stdout))
+# logger.addHandler(logging.StreamHandler(sys.stdout))
 
 def to_snake_case(text):
     # Replace spaces with underscores and convert to lowercase
@@ -58,18 +58,23 @@ def scrape_3cx(driver):
         logger.info("Logged in")
         scraper.navigate_to_call_report_admin()
         logger.info("Navigating to call-report admin")
-        week_ago = datetime.datetime.now() - datetime.timedelta(days=368 * 2)
+        week_ago = datetime.datetime.now() - datetime.timedelta(days=2)
         scraper.set_date_filter(week_ago.date())
         if scraper.check_if_report_is_empty():
             logger.info("Report is empty")
             return
         scraper.set_table_size_100()
         page_count = scraper.get_pagination_count()
+        csv_text = scraper.get_call_reports_table()
+        logger.info("got call_reports_table")
         logger.info(f"Found {page_count} pages")
-        for page in range(1, page_count+1):
-            scraper.navigate_to_pagination_page(page)
-            csv_text = scraper.get_call_reports_table()
-            logger.info("got call_reports_table")
+        # logger.info(csv_text)
+
+
+        # for page in range(1, page_count+1):
+        #     scraper.navigate_to_pagination_page(page)
+        #     csv_text = scraper.get_call_reports_table()
+        #     logger.info("got call_reports_table")
 
 
 

@@ -14,7 +14,7 @@ logging.basicConfig(
     encoding='utf-8',
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger.addHandler(logging.StreamHandler(sys.stdout))
+# logger.addHandler(logging.StreamHandler(sys.stdout))
 
 class Scraper:
     def __init__(self,
@@ -30,6 +30,7 @@ class Scraper:
             'call_reports': 'https://geo3-core1.intermaxnetworks.com/portal/callhistory',
             'call_reports_index': 'https://geo3-core1.intermaxnetworks.com/portal/callhistory/index/page:'
         }
+        logger.info(f'{self.DEBUG = }')
 
     ###############################
     # UTILITY FUNCTIONS
@@ -47,12 +48,12 @@ class Scraper:
                 self.driver.quit()
                 raise e
             else:
-                print(f'Element not found for query: {query}')
+                logger.warn(f'Element not found for query: {query}')
                 return None
 
     def wait_for_element_to_be_clickable(self, element, timeout=None):
         timeout = timeout or self.wait_time
-        print('Waiting for element to be clickable.')
+        logger.info('Waiting for element to be clickable.')
         try:
             i = WebDriverWait(self.driver, timeout).until(
                 EC.element_to_be_clickable(element)
@@ -93,7 +94,6 @@ class Scraper:
     # AUTHENTICATION
     ###############################
     def login(self, username, password):
-        logger.info(f'{self.DEBUG = }')
         logger.info('Logging in.')
         self.driver.get(self.urls['signin'])
         username_field = self.wait_for_element((By.ID, 'LoginUsername'))
@@ -135,7 +135,8 @@ class Scraper:
 
         headers_text = []
         for header in table_headers[:-1]:  # Last column is the actions button
-            headers_text.append(header.text.strip())
+            headers_text.append(header.text.strip().lower().replace(' ', '_'))
+        headers_text.append('download_url')
 
         logger.info(f'Found {len(headers_text)} headers')
         logger.info(', '.join(headers_text))
@@ -146,9 +147,7 @@ class Scraper:
 
         # Get tbody and its rows
         tbody = table.find_element(By.XPATH, './/tbody')
-
-        rows = tbody.find_elements(By.XPATH, './/tr')
-
+        rows = tbody.find_elements(By.XPATH, './/tr[@recindex]')
         logger.info(f'Found {len(rows)} rows')
 
         # Process each row
@@ -157,6 +156,12 @@ class Scraper:
             cells_text = []
             for cell in cells[:-1]:  # Skip the last cell (actions)
                 cells_text.append(cell.text.strip())
+
+            transcription_link = row.find_element(By.XPATH, './/td[@class="action-buttons"]/a[1]').get_attribute('href')
+            logger.info(f'{transcription_link = }')
+            cells_text.append(transcription_link or '')
+
+            logger.info(f'Found {len(cells_text)} cells')
             row_text = f'{",".join(cells_text)}\n'
             csv_text += row_text
 
@@ -178,7 +183,6 @@ class Scraper:
         # Set table size
         pager100 = self.driver.find_element(By.XPATH, '//a[@id="LinkPager100"]')
         pager100.click()
-
 
         # Check again after load
         parent_li = self.driver.find_element(By.XPATH, '//a[@id="LinkPager100"]/ancestor::li')
@@ -243,10 +247,8 @@ class Scraper:
         try:
             os.makedirs('screenshots', exist_ok=True)
             screenshot_dir = os.path.join(os.getcwd(), 'screenshots')
-            print(f'{screenshot_dir = }')
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             filename = os.path.join(screenshot_dir, f'{timestamp}_{name}.png')
-            print(f'{filename = }')
             self.driver.save_screenshot(filename)
             logger.info(f"Screenshot saved: {filename}")
         except Exception as e:
