@@ -1,13 +1,15 @@
 CREATE TABLE IF NOT EXISTS calls (
-    id INTEGER PRIMARY KEY,
-    call_time TIMESTAMP,
+    id TEXT PRIMARY KEY,
+    call_end TIMESTAMP,
     from_name TEXT,
     from_number TEXT,
-    destination TEXT,
+    dialed TEXT,
     to_number TEXT,
     duration TEXT,
     download_url TEXT,
+    filename TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_call_time ON calls(call_time);
+CREATE INDEX IF NOT EXISTS idx_call_end ON calls(call_end, id);
+CREATE INDEX IF NOT EXISTS idx_filename ON calls(filename, download_url, id);

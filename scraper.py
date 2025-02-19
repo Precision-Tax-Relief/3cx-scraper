@@ -157,7 +157,7 @@ class Scraper:
         except Exception as e:
             logger.warning(f"Timeout waiting for recording lookups to complete: {str(e)}")
 
-    def get_call_reports_table(self):
+    def get_call_reports_table(self, date: date):
         logger.info('Getting report from Call Report table.')
 
         # Wait for table to be present
@@ -170,18 +170,13 @@ class Scraper:
         headers_text = []
         for header in table_headers[:-1]:  # Last column is the actions button
             headers_text.append(header.text.strip().lower().replace(' ', '_'))
-        headers_text.append('download_url')
-
-        logger.info(f'Found {len(headers_text)} headers')
-        logger.info(', '.join(headers_text))
-        # expected rows: from_name, from, qos, dialed, to, qos, date, duration, download_url
+        headers_text = headers_text + ['download_url', 'id']
 
 
         # Get tbody and its rows
         tbody = table.find_element(By.XPATH, './/tbody')
         rows = tbody.find_elements(By.XPATH, './/tr[@recindex]')
         row_count = len(rows)
-        logger.info(f'Found {row_count} rows')
 
         # Wait for all recording ajax lookups to complete
         self.wait_for_recording_lookups(row_count)
@@ -197,6 +192,13 @@ class Scraper:
             transcription_link = row.find_element(By.XPATH, './/td[@class="action-buttons"]/a[1]')
             transcription_link = transcription_link.get_attribute('href')
             cells_text.append(transcription_link or '')
+
+            # Get ID from notes link
+            notes_link = row.find_element(By.XPATH, './/td[@class="action-buttons"]/a[@class="helpsy reports"]')
+            notes_link = notes_link.get_attribute('href')
+            id = notes_link.split('/')[-1]
+            cells_text.append(id)
+
             data.append(cells_text)
 
         df = pd.DataFrame(data, columns=headers_text)
@@ -210,10 +212,18 @@ class Scraper:
             try:
                 # Remove the 'th', 'st', 'nd', 'rd' from the day
                 date_str = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', date_str)
-                # Now parse with the correct format
-                return datetime.strptime(date_str, '%b %d %I:%M %p')
+
+                # Try parsing with year first
+                try:
+                    date_obj = datetime.strptime(date_str, '%b %d %Y %I:%M %p')
+                except ValueError:
+                    # If that fails, try without year and add current year
+                    date_obj = datetime.strptime(date_str, '%b %d %I:%M %p').replace(year=date.today().year)
+
+                return date_obj.isoformat()
             except ValueError as e:
                 logger.warning(f'Failed to parse date: {date_str}')
+                raise f'Failed to parse date: {date_str} - {str(e)}'
                 return None
 
         df['date'] = df['date'].apply(parse_date)
@@ -232,7 +242,8 @@ class Scraper:
         logger.info('Scrolling to the bottom of the page')
         self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
-        self.take_screenshot('pager100-before-click')
+        if self.DEBUG:
+            self.take_screenshot('pager100-before-click')
         # Set table size
         pager100 = self.driver.find_element(By.XPATH, '//a[@id="LinkPager100"]')
         pager100.click()

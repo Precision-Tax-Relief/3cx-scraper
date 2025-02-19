@@ -4,6 +4,7 @@ import logging
 import datetime
 from scraper import Scraper
 from db import Database
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -12,15 +13,15 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 # logger.addHandler(logging.StreamHandler(sys.stdout))
-# db = Database()
+db = Database()
 
 
 def create_row_hash(row):
     # Strip any whitespace from values and handle potential missing values
     # expected rows: from_name, from, qos, dialed, to, qos, date, duration, download_url
-    from_time = str(row.get('from_time', '')).strip()
-    destination = str(row.get('from', '')).strip()
-    date = str(row.get('date', '').isoformat())
+    from_time = str(row.get('from_name', ''))
+    destination = str(row.get('from', ''))
+    date = str(row.get('date', ''))
 
     # Combine the specified columns and create a hash
     combined = f"{from_time}{destination}{date}"
@@ -30,13 +31,26 @@ def create_row_hash(row):
 def insert_df_into_db(df):
     """Insert records from a DataFrame into the database"""
     # Add hash ID to each row
-    df['id'] = df.apply(create_row_hash, axis=1)
-    # Convert DataFrame to list of dictionaries
+    # df['id'] = df.apply(create_row_hash, axis=1)
+    # # Convert timestamp to ISO format string
+    # df['date'] = df['date'].apply(lambda x: x.isoformat() if pd.notnull(x) else None)    # Convert DataFrame to list of dictionaries
     calls_data = df.to_dict(orient='records')
 
     # Store in SQLite database
     db.insert_calls(calls_data)
-    logger.info(f"Successfully stored {len(calls_data)} records in database")
+
+
+def scrape_day_logged_in(scraper, date):
+    scraper.set_date_filter(date)
+    if scraper.check_if_report_is_empty():
+        return
+    scraper.set_table_size_100()
+    page_count = scraper.get_pagination_count()
+
+    for page in range(1, page_count+1):
+        scraper.navigate_to_pagination_page(page)
+        df = scraper.get_call_reports_table(date)
+        insert_df_into_db(df)
 
 
 def scrape_3cx(driver):
@@ -56,37 +70,19 @@ def scrape_3cx(driver):
         logger.info("Logged in")
         scraper.navigate_to_call_report_admin()
         logger.info("Navigating to call-report admin")
-        week_ago = datetime.datetime.now() - datetime.timedelta(days=5)
-        scraper.set_date_filter(week_ago.date())
-        if scraper.check_if_report_is_empty():
-            logger.info("Report is empty")
-            return
-        scraper.set_table_size_100()
-        page_count = scraper.get_pagination_count()
-        dataframe = scraper.get_call_reports_table()
-        logger.info("got call_reports_table")
-        logger.info(f"Found {page_count} pages")
-        insert_df_into_db(dataframe)
-        # logger.info(csv_text)
 
 
-        # for page in range(1, page_count+1):
-        #     scraper.navigate_to_pagination_page(page)
-        #     csv_text = scraper.get_call_reports_table()
-        #     logger.info("got call_reports_table")
+        # Define date range (e.g., last 30 days)
+        # end_date = (datetime.datetime.now() - datetime.timedelta(days=1)).date()
+        end_date = datetime.date(2024, 5, 15)
+        start_date = datetime.date(2024, 4, 30)
 
-
-
-        # logger.info("Getting logs from one week ago")
-        # week_ago = datetime.datetime.now() - datetime.timedelta(days=7)
-        # scraper.set_date_filter(week_ago.date())
-        # scraper.set_table_size_100()
-        # csv_text = scraper.get_call_reports_table()
-        # logger.info("got call_reports_table")
-        # logger.info(csv_text)
-
-
-
+        # Iterate through each day in the range
+        current_date = start_date
+        while current_date <= end_date:
+            logger.info(f"Scraping data for {current_date}")
+            scrape_day_logged_in(scraper, current_date)
+            current_date += datetime.timedelta(days=1)
 
     except Exception as e:
         driver.quit()

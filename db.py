@@ -39,16 +39,17 @@ class Database:
             cursor = conn.cursor()
             try:
                 cursor.executemany("""
-                    INSERT INTO calls (
-                        call_time, from_name, from_number,
-                        destination, to_number, duration, download_url
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT OR REPLACE INTO calls (
+                        id, call_end, from_name, from_number,
+                        dialed, to_number, duration, download_url
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, [
                     (
-                        call['call_time'],
+                        call['id'],
+                        call['date'],
                         call['from_name'],
                         call.get('from', ''),  # Using get() as 'from' is a reserved word
-                        call['destination'],
+                        call['dialed'],
                         call.get('to', ''),
                         call['duration'],
                         call['download_url']

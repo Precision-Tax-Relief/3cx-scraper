@@ -61,29 +61,8 @@ if __name__ == '__main__':
         driver = chrome_testing()
     else:
         driver = chrome_headless(logger)
-    # scrape_3cx(driver)
+    scrape_3cx(driver)
     logger.info(f'Task completed')
     driver.quit()
 
     logger.info('Testing DB')
-
-    from db import Database
-
-    # Initialize database
-    db = Database()
-
-    # Example data
-    calls_data = [
-        {
-            'call_time': '2024-02-18 10:00:00',
-            'from_name': 'Jane Doe',
-            'from': '1234567890',
-            'destination': 'Sales',
-            'to': '0987654321',
-            'duration': '00:05:23',
-            'download_url': 'http://example.com/recording/123'
-        }
-    ]
-
-    # Insert data
-    db.insert_calls(calls_data)
