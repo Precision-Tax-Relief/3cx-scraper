@@ -16,6 +16,10 @@ def chrome_headless(logger, download_dir=None):
     options.add_argument("--disable-dev-tools")
     options.add_argument("--no-zygote")
 
+    # Enable browser logging
+    options.add_argument('--enable-logging')
+    options.set_capability('goog:loggingPrefs', {'browser': 'ALL'})
+
     # Use environment variables for Chrome binary and ChromeDriver paths
     chrome_binary = os.getenv('CHROME_BINARY', '/usr/bin/chromium-browser')
     chromedriver_path = os.getenv('CHROMEDRIVER_PATH', '/usr/bin/chromedriver')

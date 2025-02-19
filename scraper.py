@@ -1,7 +1,8 @@
 import os
 import re
 import sys
-from datetime import datetime, date, date
+import pandas as pd
+from datetime import datetime, date
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
@@ -123,6 +124,39 @@ class Scraper:
         except:
             return False
 
+
+    def wait_for_recording_lookups(self, expected_rows):
+        """
+        Wait for all recording lookups to complete by monitoring console logs.
+        expected_rows: number of rows in the current table
+        """
+        logger.info(f"Waiting for recording lookups to complete for {expected_rows} rows")
+
+        def check_lookup_complete():
+            # Get browser console logs
+            logs = self.driver.get_log('browser')
+            if not logs:
+                return False
+
+            # Look for the last status message
+            for log in reversed(logs):
+                message = log.get('message', '')
+                if 'recording lookup status=' in message:
+                    current, total = message.split('=')[1].strip().split('/')
+                    # Check if we've reached the last row
+                    if int(current) >= expected_rows:
+                        return True
+            return False
+
+        # Wait up to 30 seconds for lookups to complete
+        try:
+            WebDriverWait(self.driver, 30, poll_frequency=0.5).until(
+                lambda _: check_lookup_complete()
+            )
+            logger.info("Recording lookups completed")
+        except Exception as e:
+            logger.warning(f"Timeout waiting for recording lookups to complete: {str(e)}")
+
     def get_call_reports_table(self):
         logger.info('Getting report from Call Report table.')
 
@@ -140,16 +174,19 @@ class Scraper:
 
         logger.info(f'Found {len(headers_text)} headers')
         logger.info(', '.join(headers_text))
+        # expected rows: from_name, from, qos, dialed, to, qos, date, duration, download_url
 
-
-        # Start building CSV text with headers
-        csv_text = f'{",".join(headers_text)}\n'
 
         # Get tbody and its rows
         tbody = table.find_element(By.XPATH, './/tbody')
         rows = tbody.find_elements(By.XPATH, './/tr[@recindex]')
-        logger.info(f'Found {len(rows)} rows')
+        row_count = len(rows)
+        logger.info(f'Found {row_count} rows')
 
+        # Wait for all recording ajax lookups to complete
+        self.wait_for_recording_lookups(row_count)
+
+        data = []
         # Process each row
         for row in rows:
             cells = row.find_elements(By.XPATH, './/td')
@@ -157,15 +194,31 @@ class Scraper:
             for cell in cells[:-1]:  # Skip the last cell (actions)
                 cells_text.append(cell.text.strip())
 
-            transcription_link = row.find_element(By.XPATH, './/td[@class="action-buttons"]/a[1]').get_attribute('href')
-            logger.info(f'{transcription_link = }')
+            transcription_link = row.find_element(By.XPATH, './/td[@class="action-buttons"]/a[1]')
+            transcription_link = transcription_link.get_attribute('href')
             cells_text.append(transcription_link or '')
+            data.append(cells_text)
 
-            logger.info(f'Found {len(cells_text)} cells')
-            row_text = f'{",".join(cells_text)}\n'
-            csv_text += row_text
+        df = pd.DataFrame(data, columns=headers_text)
 
-        return csv_text
+
+        # Remove the 'qos' columns
+        df = df.loc[:, ~df.columns.str.contains('qos', case=False)]
+
+        # Format the 'date' column as a datetime object
+        def parse_date(date_str):
+            try:
+                # Remove the 'th', 'st', 'nd', 'rd' from the day
+                date_str = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', date_str)
+                # Now parse with the correct format
+                return datetime.strptime(date_str, '%b %d %I:%M %p')
+            except ValueError as e:
+                logger.warning(f'Failed to parse date: {date_str}')
+                return None
+
+        df['date'] = df['date'].apply(parse_date)
+
+        return df
 
     def set_table_size_100(self):
         logger.info('Setting table size to 100')

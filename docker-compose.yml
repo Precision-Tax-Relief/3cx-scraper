@@ -9,8 +9,12 @@ services:
       - .env
     volumes:
       - ./screenshots:/app/screenshots
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2048m
+      - type: bind
+        source: ./data
+        target: /data/db
+    user: "1000:1000"
+#    deploy:
+#      resources:
+#        limits:
+#          cpus: '2'
+#          memory: 2048m

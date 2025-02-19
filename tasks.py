@@ -1,12 +1,9 @@
 import os
-import sys
 import hashlib
-import requests
 import logging
-from io import StringIO
 import datetime
 from scraper import Scraper
-import pytz
+from db import Database
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -15,30 +12,31 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 # logger.addHandler(logging.StreamHandler(sys.stdout))
-
-def to_snake_case(text):
-    # Replace spaces with underscores and convert to lowercase
-    return text.lower().replace(' ', '_')
-
-
-def convert_pst_time(time_str):
-    # Parse the time string and set PST timezone
-    pst = pytz.timezone('America/Los_Angeles')
-    dt = datetime.strptime(time_str, '%m/%d/%Y %I:%M:%S %p')
-    dt_pst = pst.localize(dt)
-    # Convert to UTC ISO format for database compatibility
-    return dt_pst.astimezone(pytz.UTC).isoformat()
+# db = Database()
 
 
 def create_row_hash(row):
     # Strip any whitespace from values and handle potential missing values
-    call_time = str(row.get('call_time', '')).strip()
-    destination = str(row.get('destination', '')).strip()
-    status = str(row.get('status', '')).strip()
+    # expected rows: from_name, from, qos, dialed, to, qos, date, duration, download_url
+    from_time = str(row.get('from_time', '')).strip()
+    destination = str(row.get('from', '')).strip()
+    date = str(row.get('date', '').isoformat())
 
     # Combine the specified columns and create a hash
-    combined = f"{call_time}{destination}{status}"
+    combined = f"{from_time}{destination}{date}"
     return hashlib.md5(combined.encode()).hexdigest()
+
+
+def insert_df_into_db(df):
+    """Insert records from a DataFrame into the database"""
+    # Add hash ID to each row
+    df['id'] = df.apply(create_row_hash, axis=1)
+    # Convert DataFrame to list of dictionaries
+    calls_data = df.to_dict(orient='records')
+
+    # Store in SQLite database
+    db.insert_calls(calls_data)
+    logger.info(f"Successfully stored {len(calls_data)} records in database")
 
 
 def scrape_3cx(driver):
@@ -58,16 +56,17 @@ def scrape_3cx(driver):
         logger.info("Logged in")
         scraper.navigate_to_call_report_admin()
         logger.info("Navigating to call-report admin")
-        week_ago = datetime.datetime.now() - datetime.timedelta(days=2)
+        week_ago = datetime.datetime.now() - datetime.timedelta(days=5)
         scraper.set_date_filter(week_ago.date())
         if scraper.check_if_report_is_empty():
             logger.info("Report is empty")
             return
         scraper.set_table_size_100()
         page_count = scraper.get_pagination_count()
-        csv_text = scraper.get_call_reports_table()
+        dataframe = scraper.get_call_reports_table()
         logger.info("got call_reports_table")
         logger.info(f"Found {page_count} pages")
+        insert_df_into_db(dataframe)
         # logger.info(csv_text)
 
 
