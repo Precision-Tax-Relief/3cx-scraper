@@ -4,7 +4,6 @@ import logging
 import datetime
 from scraper import Scraper
 from db import Database
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -48,7 +47,8 @@ def scrape_day_logged_in(scraper, date):
     page_count = scraper.get_pagination_count()
 
     for page in range(1, page_count+1):
-        scraper.navigate_to_pagination_page(page)
+        if page > 1:
+            scraper.navigate_to_pagination_page(page)
         df = scraper.get_call_reports_table(date)
         insert_df_into_db(df)
 
@@ -73,15 +73,18 @@ def scrape_3cx(driver):
 
 
         # Define date range (e.g., last 30 days)
-        # end_date = (datetime.datetime.now() - datetime.timedelta(days=1)).date()
-        end_date = datetime.date(2024, 5, 15)
-        start_date = datetime.date(2024, 4, 30)
+        end_date = (datetime.datetime.now() - datetime.timedelta(days=1)).date()
+        start_date = datetime.date(2025, 2, 19)
 
         # Iterate through each day in the range
         current_date = start_date
         while current_date <= end_date:
             logger.info(f"Scraping data for {current_date}")
-            scrape_day_logged_in(scraper, current_date)
+            try:
+                scrape_day_logged_in(scraper, current_date)
+            except Exception as e:
+                logger.error(f"Scraper encountered error, retrying day {current_date}.")
+                scrape_day_logged_in(scraper, current_date)
             current_date += datetime.timedelta(days=1)
 
     except Exception as e:

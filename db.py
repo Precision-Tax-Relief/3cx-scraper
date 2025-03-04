@@ -74,3 +74,42 @@ class Database:
                            """, (limit,))
             columns = [description[0] for description in cursor.description]
             return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    def get_records_without_filename(self, order="asc", limit=1000):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, download_url, filename
+                FROM calls 
+                WHERE download_url NOT LIKE ''
+                AND filename IS NULL
+                ORDER BY call_end {order}
+                LIMIT {limit}
+            """.format(order=order, limit=limit))
+            return cursor.fetchall()
+
+
+    def update_filename(self, record_id, filename):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                           UPDATE calls
+                           SET filename = ?
+                           WHERE id = ?
+                           """, (filename, record_id))
+            conn.commit()
+
+    def update_filenames_batch(self, updates):
+        """
+        Perform batch update of filenames
+        updates: list of tuples (filename, record_id)
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.executemany("""
+                UPDATE calls 
+                SET filename = ? 
+                WHERE id = ?
+            """, updates)
+            conn.commit()
+            logger.info(f"Updated {cursor.rowcount} records in batch")

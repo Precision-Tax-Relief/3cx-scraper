@@ -194,7 +194,11 @@ class Scraper:
             cells_text.append(transcription_link or '')
 
             # Get ID from notes link
-            notes_link = row.find_element(By.XPATH, './/td[@class="action-buttons"]/a[@class="helpsy reports"]')
+            try:
+                notes_link = row.find_element(By.XPATH, './/td[@class="action-buttons"]/a[@class="helpsy reports"]')
+            except:
+                logger.warning('No notes link found, could not get record ID. Skipping row.')
+                continue
             notes_link = notes_link.get_attribute('href')
             id = notes_link.split('/')[-1]
             cells_text.append(id)

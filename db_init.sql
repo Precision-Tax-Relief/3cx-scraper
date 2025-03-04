@@ -12,4 +12,4 @@ CREATE TABLE IF NOT EXISTS calls (
 );
 
 CREATE INDEX IF NOT EXISTS idx_call_end ON calls(call_end, id);
-CREATE INDEX IF NOT EXISTS idx_filename ON calls(filename, download_url, id);
+CREATE INDEX IF NOT EXISTS idx_filename ON calls(filename, call_end, download_url, id);
