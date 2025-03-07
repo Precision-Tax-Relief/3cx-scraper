@@ -1,4 +1,5 @@
 import os
+import sys
 import hashlib
 import requests
 import pandas as pd
@@ -6,7 +7,11 @@ from io import StringIO
 from datetime import datetime
 from scraper import Scraper
 import pytz
+import logging
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.ERROR, encoding='utf-8', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger.addHandler(logging.StreamHandler(sys.stdout))
 
 def to_snake_case(text):
     # Replace spaces with underscores and convert to lowercase
@@ -33,7 +38,7 @@ def create_row_hash(row):
     return hashlib.md5(combined.encode()).hexdigest()
 
 
-def scrape_3cx(driver, logger):
+def scrape_3cx(driver):
     scraper = Scraper(
         driver=driver
     )
@@ -42,11 +47,8 @@ def scrape_3cx(driver, logger):
             os.environ.get('ACCOUNT'),
             os.environ.get('PASSWORD'),
         )
-        logger.info("Logged in")
         scraper.navigate_to_call_report_admin()
-        logger.info("Navigating to call-report admin")
         csv_text = scraper.get_call_reports_table()
-        logger.info("got call_reports_table")
 
     except Exception as e:
         driver.quit()
@@ -61,11 +63,11 @@ def scrape_3cx(driver, logger):
         df = pd.read_csv(
             StringIO(csv_text),
             skipinitialspace=True,
-            on_bad_lines='warn'
+            on_bad_lines='error'
         )
 
         if df.empty:
-            logger.info("No data available in the CSV. Skipping further processing.")
+            print("No data available in the CSV. Skipping further processing.")
             return  # Skip the rest of the function
 
         # Convert column names to snake case
@@ -85,11 +87,12 @@ def scrape_3cx(driver, logger):
 
         # Send POST request
         headers = {'Content-Type': 'application/json'}
+        print('Sending data to ', OUT_URL)
         response = requests.post(OUT_URL, json=json_data, headers=headers)
 
         # Check if request was successful
         response.raise_for_status()
-        logger.info(f"Data successfully sent to {OUT_URL}")
+        print(f"Data successfully.")
 
     except pd.errors.EmptyDataError:
         logger.error("CSV text is empty or invalid")
@@ -100,3 +103,5 @@ def scrape_3cx(driver, logger):
     except Exception as e:
         logger.error(f"Unexpected error processing data: {str(e)}")
         raise
+
+    print("Job done")

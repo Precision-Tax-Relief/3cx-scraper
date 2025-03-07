@@ -1,13 +1,17 @@
+import csv
 import os
+import sys
+from io import StringIO
 from time import sleep
 from datetime import datetime
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
-
 import logging
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.ERROR, encoding='utf-8', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
 class Scraper:
@@ -65,13 +69,13 @@ class Scraper:
             lambda driver: driver.execute_script('return document.readyState') == 'complete'
         )
         sleep(2)
-        print('Page loaded completely')
+        print('Page loaded.')
 
     ###############################
     # AUTHENTICATION
     ###############################
     def login(self, username, password):
-        logger.info('Logging in.')
+        print('Logging in.')
         self.driver.get(self.urls['signin'])
         username_field = self.wait_for_element((By.ID, 'loginInput'))
         password_field = self.driver.find_element(By.ID, 'passwordInput')
@@ -80,12 +84,16 @@ class Scraper:
         password_field.send_keys(password)
 
         self.driver.find_element(By.ID, 'submitBtn').click()
-        sleep(5)
+        WebDriverWait(self.driver, 30).until(
+            lambda driver: driver.execute_script('return document.readyState') == 'complete'
+        )
+        print('Logged in.')
+
 
     ###############################
     # CALL REPORTING
     ###############################
-    def get_call_reports_table(self):
+    def get_call_reports_table(self) -> StringIO:
         print('Getting report from Call Report table.')
 
         # Wait for table to be present
@@ -107,8 +115,12 @@ class Scraper:
         print(f'Found {len(headers_text)} headers')
         print(', '.join(headers_text))
 
-        # Start building CSV text with headers
-        csv_text = f'{",".join(headers_text)}\n'
+        # Create a CSV writer with StringIO to handle proper escaping
+        output = StringIO()
+        csv_writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
+
+        # Write headers to CSV
+        csv_writer.writerow(headers_text)
 
         # Get tbody and its rows
         tbody = table.find_element(By.XPATH, './/tbody')
@@ -125,11 +137,12 @@ class Scraper:
             cells_text = []
             for cell in cells[:-1]:  # Skip the last cell (actions)
                 cells_text.append(cell.text.strip())
-            row_text = f'{",".join(cells_text)}\n'
-            print(row_text)
-            csv_text += row_text
-
+            csv_writer.writerow(cells_text)
+            print(cells_text)
+        csv_text = output.getvalue()
         return csv_text
+
+
 
     ###############################
     # TESTING

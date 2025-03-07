@@ -1,23 +1,13 @@
-# Start with Python Alpine base
-FROM python:3.11-alpine
+FROM python:3.11-slim
 
 # Install Chrome and other dependencies
-RUN apk upgrade --no-cache --available \
-    && apk add --no-cache \
+RUN apt-get update
+RUN apt-get install -y \
       chromium \
-      chromium-chromedriver \
-      chromium-swiftshader \
-      ttf-freefont \
-      font-noto-emoji \
-      bash \
-    && apk add --no-cache \
-      --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community \
-      font-wqy-zenhei
-
-# Set Chrome environment variables
-ENV CHROME_BIN=/usr/bin/chromium-browser \
-    CHROME_PATH=/usr/lib/chromium/ \
-    CHROMIUM_FLAGS="--disable-software-rasterizer --disable-dev-shm-usage"
+      chromium-driver \
+      bash
+RUN apt-get clean
+RUN rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -30,8 +20,13 @@ RUN pip install -r requirements.txt
 ENV PORT=8080
 ENV WEBSITES_PORT=8080
 
+# Set Chrome environment variables
+ENV CHROME_BIN=/usr/bin/chromium \
+    CHROME_PATH=/usr/lib/chromium/
+#    CHROMIUM_FLAGS="--disable-software-rasterizer --disable-dev-shm-usage"
+
 # Create a non-root user and set permissions
-RUN adduser -D appuser \
+RUN useradd -m appuser \
     && chown -R appuser:appuser /app
 USER appuser
 

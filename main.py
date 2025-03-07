@@ -9,8 +9,8 @@ from webdriver_client import chrome_headless, chrome_testing
 from tasks import scrape_3cx
 
 
-logger = logging.getLogger()
-logging.basicConfig(level=logging.ERROR, encoding='utf-8')
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.ERROR, encoding='utf-8', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger.addHandler(logging.StreamHandler(sys.stdout))
 load_dotenv()
 
@@ -57,6 +57,6 @@ if __name__ == '__main__':
         driver = chrome_testing()
     else:
         driver = chrome_headless(logger)
-    scrape_3cx(driver, logger)
+    scrape_3cx(driver)
     logger.info(f'Task completed')
     driver.quit()

@@ -11,13 +11,14 @@ def chrome_headless(logger, download_dir=None):
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1280x1696")
+    # options.add_argument("--window-size=1280x1696")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-dev-tools")
     options.add_argument("--no-zygote")
+    options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
 
     # Use environment variables for Chrome binary and ChromeDriver paths
-    chrome_binary = os.getenv('CHROME_BINARY', '/usr/bin/chromium-browser')
+    chrome_binary = os.getenv('CHROME_BIN', '/usr/bin/chromium')
     chromedriver_path = os.getenv('CHROMEDRIVER_PATH', '/usr/bin/chromedriver')
 
     options.binary_location = chrome_binary
@@ -26,7 +27,7 @@ def chrome_headless(logger, download_dir=None):
     prefs = {
         "download.prompt_for_download": False,
         "download.directory_upgrade": True,
-        "safebrowsing.enabled": True
+        # "safebrowsing.enabled": True
     }
     if download_dir is not None:
         prefs["download.default_directory"] = download_dir
