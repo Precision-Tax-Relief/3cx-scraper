@@ -1,7 +1,9 @@
-from db import Database, Database
+from db import  Database
 import requests
 from urllib.parse import unquote
 from time import sleep
+
+db = Database()
 
 def get_filename_from_headers(url):
     try:
@@ -25,8 +27,6 @@ def get_filename_from_headers(url):
         return "500"
 
 while True:
-    db = Database()
-
     records = db.get_records_without_filename(order="asc")
     print(f"Found {len(records)} records to process")
 
@@ -51,6 +51,7 @@ while True:
             db.update_filenames_batch(updates)
             print("\n###############\n")
             updates = []
+        sleep(0.001)
 
     print("\n###############\n")
     db.update_filenames_batch(updates)

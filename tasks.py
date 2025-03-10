@@ -73,9 +73,8 @@ def scrape_3cx(driver):
 
 
         # Define date range (e.g., last 30 days)
-        # 
         end_date = (datetime.datetime.now() - datetime.timedelta(days=1)).date()
-        start_date = datetime.date(2025, 3, 2)
+        start_date = datetime.date(2025, 3, 8)
 
         # Iterate through each day in the range
         current_date = start_date

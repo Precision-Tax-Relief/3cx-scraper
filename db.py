@@ -52,7 +52,7 @@ class Database:
                         call['dialed'],
                         call.get('to', ''),
                         call['duration'],
-                        call['download_url']
+                        call['download_url'],
                     )
                     for call in calls_data
                 ])
